@@ -162,8 +162,10 @@ async def run_processing_pipeline(meeting_id: str, audio_bytes: bytes, filename:
         set_status("extracting")
         try:
             intelligence = await extract_intelligence(transcript)
+            if not intelligence or not isinstance(intelligence, dict):
+                raise ValueError("Extraction returned empty or invalid result")
         except Exception as e:
-            set_status("failed", f"Extraction error: {str(e)}")
+            set_status("failed", f"Intelligence extraction failed: {str(e)[:200]}")
             return
 
         # Save intelligence to Supabase

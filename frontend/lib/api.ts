@@ -119,20 +119,21 @@ export async function getDealMemory(dealId: string): Promise<{
 }
 
 export async function getDealBrief(dealId: string): Promise<{
-  deal_id: string;
-  brief: string;
-  generated_at: string;
+  deal_id?: string;
+  deal_context: string;
+  meeting_history_summary: string;
+  recurring_risks: { risk: string; severity: string; appeared_in_meetings: number[] }[];
+  recommended_strategies: { strategy: string; reasoning: string }[];
+  stakeholders_to_know: { name: string; role: string; key_concern: string }[];
+  competitor_context: string;
+  confidence: "low" | "medium" | "high";
+  memory_sources: { episodic_count: number; semantic_count: number; procedural_count: number };
 }> {
   const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/brief`);
   return handleResponse(res);
 }
 
-export async function getDealSummary(dealId: string): Promise<{
-  deal_id: string;
-  summary: string;
-  total_meetings: number;
-  meeting_count: number;
-}> {
+export async function getDealSummary(dealId: string): Promise<import("@/lib/types").DealSummary> {
   const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/summary`);
   return handleResponse(res);
 }

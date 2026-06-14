@@ -41,13 +41,19 @@ async def extract_intelligence(transcript: str) -> Dict[str, Any]:
     try:
         raw = await call_api("qwen/qwen3-32b")
         cleaned = raw.replace("```json", "").replace("```", "").strip()
-        return json.loads(cleaned)
+        result = json.loads(cleaned)
+        if not isinstance(result, dict):
+            raise ValueError("Response is not a JSON object")
+        return result
     except Exception as e:
         logger.warning(f"Primary extraction failed ({e}), retrying with fallback model")
         try:
             raw = await call_api("llama-3.3-70b-versatile")
             cleaned = raw.replace("```json", "").replace("```", "").strip()
-            return json.loads(cleaned)
+            result = json.loads(cleaned)
+            if not isinstance(result, dict):
+                raise ValueError("Response is not a JSON object")
+            return result
         except Exception as e2:
             logger.error(f"Extraction failed: {e2}")
             # Return safe empty dict with expected fields
@@ -59,7 +65,7 @@ async def extract_intelligence(transcript: str) -> Dict[str, Any]:
                 "budget_signals": [],
                 "risks": [],
                 "key_decisions": [],
-                "sentiment": "",
+                "sentiment": "neutral",
                 "sentiment_score": 0.0,
                 "sentiment_reasoning": "",
             }
