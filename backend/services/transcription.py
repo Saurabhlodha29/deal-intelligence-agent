@@ -1,6 +1,6 @@
 import httpx
 import logging
-from ..config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 

@@ -4,8 +4,8 @@ from typing import Any, Dict
 
 import httpx
 
-from ..config import settings
-from ..utils.prompts import INTELLIGENCE_EXTRACTION_PROMPT
+from config import settings
+from utils.prompts import INTELLIGENCE_EXTRACTION_PROMPT
 
 logger = logging.getLogger(__name__)
 

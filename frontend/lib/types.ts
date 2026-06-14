@@ -33,3 +33,34 @@ export interface ProcessingStatus {
   step_message: string;
   error?: string;
 }
+
+export interface RecurringObjection {
+  text: string;
+  count: number;
+}
+
+export interface KeyStakeholder {
+  name: string;
+  role: string;
+  sentiment: string;
+  influence: string;
+}
+
+export interface CompetitorLandscape {
+  name: string;
+  mention_count: number;
+}
+
+export interface DealSummary {
+  deal_id: string;
+  recurring_objections: RecurringObjection[];
+  key_stakeholders: KeyStakeholder[];
+  competitor_landscape: CompetitorLandscape[];
+  sentiment_trend: string;
+  deal_risk_level: string;
+  winning_strategies: { strategy: string }[];
+  missed_opportunities: { issue: string }[];
+  total_meetings: number;
+  last_meeting_date?: string;
+  last_updated?: string;
+}

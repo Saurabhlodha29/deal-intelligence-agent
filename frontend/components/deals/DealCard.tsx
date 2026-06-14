@@ -2,13 +2,13 @@
 "use client";
 
 import React from "react";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Deal } from "@/lib/types";
 
 interface DealCardProps {
   deal: Deal;
-  onClick: () => void;
+  onClick?: () => void;
 }
 
 const stageColors: Record<Deal["stage"], string> = {
@@ -29,17 +29,30 @@ export default function DealCard({ deal, onClick }: DealCardProps) {
     : "—";
 
   return (
-    <Card className="cursor-pointer hover:shadow-lg" onClick={onClick}>
+    <Card
+      className={`hover:shadow-lg ${onClick ? "cursor-pointer" : ""}`}
+      onClick={onClick}
+    >
       <CardHeader>
         <CardTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
           {deal.company}
         </CardTitle>
-        <div className="text-sm text-gray-600 dark:text-gray-400">{deal.name}</div>
-        <Badge className={stageColors[deal.stage]}>{deal.stage.replace("_", " ")}</Badge>
+
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          {deal.name}
+        </div>
+
+        <Badge className={stageColors[deal.stage]}>
+          {deal.stage.replace("_", " ")}
+        </Badge>
       </CardHeader>
+
       <CardContent className="mt-2">
         <div className="text-lg font-medium">{formattedValue}</div>
-        <div className="text-sm text-gray-500">{deal.total_meetings} meetings</div>
+
+        <div className="text-sm text-gray-500">
+          {deal.total_meetings} meetings
+        </div>
       </CardContent>
     </Card>
   );

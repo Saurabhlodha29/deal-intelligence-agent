@@ -1,7 +1,9 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Brain, ListCollapse, Zap } from "lucide-react";
+import { Brain, ClipboardList, Star } from "lucide-react";
 
 // Expected memory API shape (simplified)
 interface MemoryResponse {
@@ -22,12 +24,13 @@ export default function MemoryTimeline({ dealId }: Props) {
   useEffect(() => {
     async function fetchMemory() {
       try {
-        const res = await fetch(`/api/v1/deals/${dealId}/memory`);
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/memory`);
         if (!res.ok) throw new Error(await res.text());
         const json = await res.json();
         setData(json);
-      } catch (e: any) {
-        setError(e.message);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "An error occurred");
       } finally {
         setLoading(false);
       }
@@ -55,7 +58,7 @@ export default function MemoryTimeline({ dealId }: Props) {
           <Card className="bg-indigo-50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ListCollapse className="h-5 w-5" /> Meeting Records
+                <ClipboardList className="h-5 w-5" /> Meeting Records
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -79,7 +82,7 @@ export default function MemoryTimeline({ dealId }: Props) {
           <Card className="bg-blue-50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5" /> Patterns Discovered
+                <Star className="h-5 w-5" /> Patterns Discovered
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -102,7 +105,7 @@ export default function MemoryTimeline({ dealId }: Props) {
           <Card className="bg-green-50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5" /> Winning Strategies
+                <Star className="h-5 w-5" /> Winning Strategies
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">

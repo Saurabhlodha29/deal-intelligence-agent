@@ -1,7 +1,11 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, BackgroundTasks, UploadFile, File
 from db.client import supabase
 from models.meeting import MeetingCreate, MeetingResponse, ProcessingStatusResponse
+from services.transcription import transcribe_audio
+from services.intelligence_extractor import extract_intelligence
+from services.memory_manager import store_episodic_memory
+from services.pattern_detector import detect_and_store_patterns
 
 router = APIRouter(tags=["meetings"])
 
@@ -119,4 +123,160 @@ def get_meeting_status(meeting_id: str):
             detail=str(e)
         )
 
-# TODO: Add POST /meetings/{meeting_id}/upload endpoint here in Prompt #5.
+async def run_processing_pipeline(meeting_id: str, audio_bytes: bytes, filename: str):
+    """
+    Background task: runs the complete audio processing pipeline.
+    Each step updates processing_status in Supabase before starting.
+    On any failure, sets status to 'failed' with the error message.
+    """
+    def set_status(s: str, error: str = None):
+        update = {"processing_status": s}
+        if error:
+            update["processing_error"] = error[:500]
+        supabase.table("meetings").update(update).eq("id", meeting_id).execute()
+
+    try:
+        # Get deal_id for this meeting
+        meeting_res = supabase.table("meetings").select("deal_id, meeting_number").eq("id", meeting_id).execute()
+        if not meeting_res.data:
+            return
+        deal_id = meeting_res.data[0]["deal_id"]
+        meeting_number = meeting_res.data[0].get("meeting_number", 1)
+
+        # Get company name
+        deal_res = supabase.table("deals").select("company").eq("id", deal_id).execute()
+        company = deal_res.data[0]["company"] if deal_res.data else "Unknown Company"
+
+        # STEP 1: Transcription
+        set_status("transcribing")
+        try:
+            transcript = await transcribe_audio(audio_bytes, filename)
+            if not transcript or len(transcript.strip()) < 10:
+                raise ValueError("Transcript is too short or empty")
+            supabase.table("meetings").update({"transcript": transcript}).eq("id", meeting_id).execute()
+        except Exception as e:
+            set_status("failed", f"Transcription error: {str(e)}")
+            return
+
+        # STEP 2: Intelligence Extraction
+        set_status("extracting")
+        try:
+            intelligence = await extract_intelligence(transcript)
+        except Exception as e:
+            set_status("failed", f"Extraction error: {str(e)}")
+            return
+
+        # Save intelligence to Supabase
+        try:
+            intelligence_record = {
+                "meeting_id": meeting_id,
+                "deal_id": deal_id,
+                "objections": intelligence.get("objections", []),
+                "competitors": intelligence.get("competitors", []),
+                "stakeholders": intelligence.get("stakeholders", []),
+                "action_items": intelligence.get("action_items", []),
+                "budget_signals": intelligence.get("budget_signals", []),
+                "risks": intelligence.get("risks", []),
+                "key_decisions": intelligence.get("key_decisions", []),
+                "sentiment": intelligence.get("sentiment", "neutral"),
+                "sentiment_score": float(intelligence.get("sentiment_score", 0.0)),
+                "sentiment_reasoning": intelligence.get("sentiment_reasoning", ""),
+                "raw_extraction": intelligence,
+            }
+            supabase.table("meeting_intelligence").insert(intelligence_record).execute()
+        except Exception as e:
+            # Log but don't fail — proceed to memory storage
+            import logging
+            logging.getLogger(__name__).error(f"Failed to save intelligence to Supabase: {e}")
+
+        # STEP 3: Memory Storage
+        set_status("storing_memory")
+        try:
+            await store_episodic_memory(
+                deal_id=deal_id,
+                meeting_id=meeting_id,
+                meeting_number=meeting_number,
+                company=company,
+                intelligence=intelligence,
+            )
+            await detect_and_store_patterns(deal_id=deal_id, supabase=supabase)
+        except Exception as e:
+            # Memory failure should NOT fail the whole pipeline
+            import logging
+            logging.getLogger(__name__).error(f"Memory storage failed (non-fatal): {e}")
+
+        # DONE
+        set_status("complete")
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Pipeline crashed for meeting {meeting_id}: {e}")
+        set_status("failed", str(e))
+
+
+@router.post("/meetings/{meeting_id}/upload")
+async def upload_meeting_audio(
+    meeting_id: str,
+    background_tasks: BackgroundTasks,
+    audio: UploadFile = File(...),
+):
+    """
+    Accept audio file upload, start background processing pipeline.
+    Returns immediately. Poll /meetings/{meeting_id}/status for progress.
+    """
+    try:
+        # Verify meeting exists
+        res = supabase.table("meetings").select("id, processing_status").eq("id", meeting_id).execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Meeting not found")
+
+        # Read audio bytes
+        audio_bytes = await audio.read()
+        if len(audio_bytes) == 0:
+            raise HTTPException(status_code=400, detail="Audio file is empty")
+
+        filename = audio.filename or f"meeting_{meeting_id}.webm"
+
+        # Set initial status
+        supabase.table("meetings").update({"processing_status": "transcribing"}).eq("id", meeting_id).execute()
+
+        # Add to background tasks (returns immediately)
+        background_tasks.add_task(run_processing_pipeline, meeting_id, audio_bytes, filename)
+
+        return {"meeting_id": meeting_id, "status": "processing_started"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/meetings/{meeting_id}/intelligence")
+def get_meeting_intelligence(meeting_id: str):
+    """Return extracted intelligence for a completed meeting."""
+    try:
+        # Check meeting status
+        meeting_res = supabase.table("meetings").select("processing_status").eq("id", meeting_id).execute()
+        if not meeting_res.data:
+            raise HTTPException(status_code=404, detail="Meeting not found")
+
+        if meeting_res.data[0]["processing_status"] != "complete":
+            raise HTTPException(status_code=404, detail="Intelligence not yet available")
+
+        intel_res = supabase.table("meeting_intelligence").select("*").eq("meeting_id", meeting_id).execute()
+        if not intel_res.data:
+            raise HTTPException(status_code=404, detail="Intelligence record not found")
+
+        # Also get meeting_number and meeting_date
+        full_meeting_res = supabase.table("meetings").select("meeting_number, meeting_date, deal_id").eq("id", meeting_id).execute()
+        intel = intel_res.data[0]
+        if full_meeting_res.data:
+            intel["meeting_number"] = full_meeting_res.data[0].get("meeting_number")
+            intel["meeting_date"] = full_meeting_res.data[0].get("meeting_date")
+
+        return intel
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

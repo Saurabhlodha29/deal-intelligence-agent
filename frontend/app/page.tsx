@@ -12,18 +12,17 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDeals = async () => {
-    try {
-      const data = await getDeals();
-      setDeals(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchDeals = async () => {
+      try {
+        const data = await getDeals();
+        setDeals(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchDeals();
   }, []);
 

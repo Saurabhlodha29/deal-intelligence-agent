@@ -29,8 +29,8 @@ export default function NewMeetingModal({ dealId, onCreated }: NewMeetingModalPr
       onCreated(newMeeting);
       setOpen(false);
       setTitle("");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
     }
@@ -38,8 +38,8 @@ export default function NewMeetingModal({ dealId, onCreated }: NewMeetingModalPr
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>New Meeting</Button>
+      <DialogTrigger render={<Button />}>
+        New Meeting
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

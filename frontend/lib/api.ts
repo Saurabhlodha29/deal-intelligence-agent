@@ -67,3 +67,33 @@ export async function getMeetingStatus(meetingId: string): Promise<ProcessingSta
   const res = await fetch(`${API_BASE}/api/v1/meetings/${meetingId}/status`);
   return handleResponse(res);
 }
+
+export async function uploadAudio(meetingId: string, audioBlob: Blob): Promise<{ meeting_id: string; status: string }> {
+  const formData = new FormData();
+  formData.append("audio", audioBlob, `meeting_${meetingId}.webm`);
+  const res = await fetch(`${API_BASE}/api/v1/meetings/${meetingId}/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  return handleResponse(res);
+}
+
+export async function getMeetingIntelligence(meetingId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/meetings/${meetingId}/intelligence`);
+  return handleResponse(res);
+}
+
+export async function getDealMemory(dealId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/memory`);
+  return handleResponse(res);
+}
+
+export async function getDealBrief(dealId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/brief`);
+  return handleResponse(res);
+}
+
+export async function getDealSummary(dealId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/summary`);
+  return handleResponse(res);
+}

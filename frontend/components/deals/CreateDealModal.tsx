@@ -50,8 +50,8 @@ export default function CreateDealModal({ onCreated }: CreateDealModalProps) {
       const newDeal = await createDeal(payload);
       onCreated(newDeal);
       setOpen(false);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
     }
@@ -59,8 +59,8 @@ export default function CreateDealModal({ onCreated }: CreateDealModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>New Deal</Button>
+      <DialogTrigger render={<Button />}>
+        New Deal
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
@@ -89,7 +89,7 @@ export default function CreateDealModal({ onCreated }: CreateDealModalProps) {
           </div>
           <div>
             <Label htmlFor="stage">Stage</Label>
-            <Select value={form.stage} onValueChange={(v) => setForm({ ...form, stage: v as any })}>
+            <Select value={form.stage} onValueChange={(v) => setForm({ ...form, stage: v as typeof form.stage })}>
               <SelectTrigger>
                 <SelectValue placeholder="Select stage" />
               </SelectTrigger>

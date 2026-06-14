@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,12 +31,13 @@ export default function IntelligenceReport({ meetingId, dealId }: Props) {
   useEffect(() => {
     async function fetchIntelligence() {
       try {
-        const res = await fetch(`/api/v1/meetings/${meetingId}/intelligence`);
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${API_BASE}/api/v1/meetings/${meetingId}/intelligence`);
         if (!res.ok) throw new Error(await res.text());
         const json = await res.json();
         setData(json);
-      } catch (e: any) {
-        setError(e.message);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "An error occurred");
       } finally {
         setLoading(false);
       }
@@ -99,7 +102,11 @@ function ObjectionsList({ objections }: { objections: Intelligence["objections"]
           <div key={i} className="flex items-center justify-between border rounded p-2">
             <span>{o.text}</span>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className={`bg-${severityColors[o.severity]}-100 text-${severityColors[o.severity]}-800`}>Severity: {o.severity}</Badge>
+              <Badge variant="secondary" className={
+                o.severity === "high" ? "bg-red-100 text-red-800" :
+                o.severity === "medium" ? "bg-yellow-100 text-yellow-800" :
+                "bg-gray-100 text-gray-800"
+              }>Severity: {o.severity}</Badge>
               <Badge variant={o.was_handled ? "default" : "destructive"}>
                 {o.was_handled ? "Handled" : "Unresolved"}
               </Badge>
@@ -112,7 +119,7 @@ function ObjectionsList({ objections }: { objections: Intelligence["objections"]
 }
 
 function StakeholderGrid({ stakeholders }: { stakeholders: Intelligence["stakeholders"] }) {
-  const sentimentIcons: Record<string, JSX.Element> = {
+  const sentimentIcons: Record<string, React.JSX.Element> = {
     positive: <span className="text-green-500" role="img" aria-label="positive">😊</span>,
     neutral: <span className="text-gray-500" role="img" aria-label="neutral">😐</span>,
     skeptical: <span className="text-yellow-500" role="img" aria-label="skeptical">🤨</span>,
@@ -145,8 +152,8 @@ function CompetitorTags({ competitors }: { competitors: Intelligence["competitor
         {competitors.map((c, i) => (
           <TooltipProvider key={i}>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant="outline" className="bg-blue-50 text-blue-800 cursor-pointer">{c.name}</Badge>
+              <TooltipTrigger render={<Badge variant="outline" className="bg-blue-50 text-blue-800 cursor-pointer" />}>
+                {c.name}
               </TooltipTrigger>
               <TooltipContent>{c.context}</TooltipContent>
             </Tooltip>
@@ -185,7 +192,11 @@ function RiskIndicator({ risks }: { risks: Intelligence["risks"] }) {
         {risks.map((r, i) => (
           <div key={i} className={`border-l-4 ${borderMap[r.severity]} p-2 ${bgMap[r.severity]} rounded`}> 
             <p className="font-medium">{r.risk}</p>
-            <Badge variant="secondary" className={`bg-${borderMap[r.severity].split("-")[1]}-100 text-${borderMap[r.severity].split("-")[1]}-800`}>Severity: {r.severity}</Badge>
+            <Badge variant="secondary" className={
+              r.severity === "high" ? "bg-red-100 text-red-800" :
+              r.severity === "medium" ? "bg-yellow-100 text-yellow-800" :
+              "bg-gray-100 text-gray-800"
+            }>Severity: {r.severity}</Badge>
           </div>
         ))}
       </CardContent>
