@@ -70,6 +70,11 @@ export default function DealDetailPage() {
     getDealSummary(dealId).then(setSummary);
   };
 
+  const handleRetryComplete = () => {
+    // Refresh meetings after retry
+    getMeetings(dealId).then(setMeetings);
+  };
+
   if (loading) {
     return (
       <div className="p-4 space-y-4">
@@ -137,7 +142,7 @@ export default function DealDetailPage() {
           ) : (
             <div className="space-y-3">
               {meetings.map((m) => (
-                <MeetingCard key={m.id} meeting={m} dealId={dealId} />
+                <MeetingCard key={m.id} meeting={m} dealId={dealId} onRetryComplete={handleRetryComplete} />
               ))}
             </div>
           )}

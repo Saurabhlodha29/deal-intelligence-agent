@@ -137,3 +137,17 @@ export async function getDealSummary(dealId: string): Promise<import("@/lib/type
   const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/summary`);
   return handleResponse(res);
 }
+
+export async function retryTranscription(meetingId: string): Promise<{ meeting_id: string; status: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/meetings/${meetingId}/retry-transcription`, {
+    method: "POST",
+  });
+  return handleResponse(res);
+}
+
+export async function retryExtraction(meetingId: string): Promise<{ meeting_id: string; status: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/meetings/${meetingId}/retry-extraction`, {
+    method: "POST",
+  });
+  return handleResponse(res);
+}
