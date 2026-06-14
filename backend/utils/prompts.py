@@ -3,33 +3,34 @@ INTELLIGENCE_EXTRACTION_PROMPT = """You are analyzing a sales meeting transcript
 Transcript:
 {transcript}
 
-Return ONLY a JSON object. No preamble, no markdown backticks, no explanation.
+Return ONLY a valid JSON object with double quotes. No preamble, no markdown backticks, no explanation.
 
+The JSON must have this exact structure:
 {{
   "objections": [
-    {"text": "exact objection raised", "severity": "low|medium|high", "was_handled": true|false}
+    {{"text": "exact objection raised", "severity": "low", "was_handled": false}}
   ],
   "competitors": [
-    {"name": "competitor name", "context": "how they were mentioned"}
+    {{"name": "competitor name", "context": "how they were mentioned"}}
   ],
   "stakeholders": [
-    {"name": "person name or Unknown", "role": "their role",
-     "sentiment": "positive|neutral|skeptical|negative", "influence": "low|medium|high"}
+    {{"name": "person name or Unknown", "role": "their role",
+     "sentiment": "positive", "influence": "low"}}
   ],
   "action_items": [
-    {"item": "what needs to be done", "owner": "us|prospect|both",
-     "deadline": "timeframe mentioned or null"}
+    {{"item": "what needs to be done", "owner": "us",
+     "deadline": null}}
   ],
   "budget_signals": [
-    {"signal": "exact budget-related statement or indicator", "type": "positive|negative|neutral"}
+    {{"signal": "exact budget-related statement or indicator", "type": "positive"}}
   ],
   "risks": [
-    {"risk": "description of the risk", "severity": "low|medium|high"}
+    {{"risk": "description of the risk", "severity": "low"}}
   ],
   "key_decisions": [
-    {"decision": "what was decided"}
+    {{"decision": "what was decided"}}
   ],
-  "sentiment": "positive|neutral|negative|mixed",
+  "sentiment": "positive",
   "sentiment_score": 0.0,
   "sentiment_reasoning": "one sentence explanation"
 }}
@@ -39,6 +40,8 @@ Rules:
 - sentiment_score is a float between -1.0 (very negative) and +1.0 (very positive)
 - Extract ALL objections, even minor ones
 - If a person's name is unknown, use "Unknown Participant"
+- severity values must be exactly: low, medium, or high
+- sentiment values must be exactly: positive, neutral, negative, or mixed
 """
 
 
@@ -51,15 +54,15 @@ Identify patterns across these meetings. Return ONLY a valid JSON object.
 No preamble, no markdown backticks, no explanation before or after.
 
 {{
-  "pricing_pattern": "string describing pricing objection frequency and nature, or null if not applicable",
+  "pricing_pattern": "string describing pricing objection frequency and nature",
   "stakeholder_pattern": "string describing key decision makers, their roles and influence level",
-  "competitor_pattern": "string describing competitor mentions and competitive dynamics, or null",
+  "competitor_pattern": "string describing competitor mentions and competitive dynamics",
   "sentiment_trend": "improving",
   "deal_risk_level": "medium",
   "deal_risk_reasoning": "one sentence explaining the risk level",
-  "what_works": ["strategy that produced positive response", "another effective approach"],
-  "what_doesnt_work": ["approach that caused disengagement", "another ineffective tactic"],
-  "recommended_next_steps": ["specific tactic for next meeting", "another concrete recommendation"]
+  "what_works": ["strategy that produced positive response"],
+  "what_doesnt_work": ["approach that caused disengagement"],
+  "recommended_next_steps": ["specific tactic for next meeting"]
 }}
 
 For sentiment_trend use exactly one of: improving, declining, stable, volatile
