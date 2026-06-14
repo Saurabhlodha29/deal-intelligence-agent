@@ -151,3 +151,28 @@ export async function retryExtraction(meetingId: string): Promise<{ meeting_id: 
   });
   return handleResponse(res);
 }
+
+export async function getDealReport(dealId: string): Promise<{
+  executive_summary: string;
+  deal_health: string;
+  risk_level: string;
+  patterns: { pattern: string; type: string; frequency: string }[];
+  winning_strategies: { strategy: string; evidence: string }[];
+  next_steps: string[];
+  memory_timeline: { meeting_number: number; event: string; type: string }[];
+}> {
+  const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/report`);
+  return handleResponse(res);
+}
+
+export async function getRecommendations(dealId: string, context?: string): Promise<{
+  recommendations: { title: string; description: string; priority: string; category: string }[];
+  confidence: "low" | "medium" | "high";
+}> {
+  const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/recommend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ context }),
+  });
+  return handleResponse(res);
+}

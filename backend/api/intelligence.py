@@ -2,13 +2,20 @@ import json
 import logging
 import httpx
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import Optional
 from config import settings
 from db.client import supabase
 from services.memory_manager import get_all_deal_memories
+from services.report_generator import generate_report, generate_recommendations
 from utils.prompts import BRIEF_GENERATION_PROMPT
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+class RecommendRequest(BaseModel):
+    context: Optional[str] = None
 
 
 async def _call_groq_for_brief(prompt: str) -> dict:
@@ -118,3 +125,41 @@ def get_deal_summary(deal_id: str):
             "total_meetings": 0,
         }
     return summary_res.data[0]
+
+
+@router.get("/deals/{deal_id}/report")
+async def get_deal_report(deal_id: str):
+    """Generate a comprehensive deal report with patterns and strategies."""
+    deal_res = supabase.table("deals").select("*").eq("id", deal_id).execute()
+    if not deal_res.data:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    deal = deal_res.data[0]
+
+    intel_res = supabase.table("meeting_intelligence").select("*").eq("deal_id", deal_id).execute()
+    meeting_intelligences = intel_res.data or []
+
+    summary_res = supabase.table("deal_memory_summary").select("*").eq("deal_id", deal_id).execute()
+    deal_summary = summary_res.data[0] if summary_res.data else {}
+
+    memories = await get_all_deal_memories(deal_id)
+
+    report = await generate_report(deal, meeting_intelligences, deal_summary, memories)
+    return report
+
+
+@router.post("/deals/{deal_id}/recommend")
+async def get_recommendations(deal_id: str, request: RecommendRequest = None):
+    """Generate AI-powered recommendations for the next meeting."""
+    deal_res = supabase.table("deals").select("*").eq("id", deal_id).execute()
+    if not deal_res.data:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    deal = deal_res.data[0]
+
+    summary_res = supabase.table("deal_memory_summary").select("*").eq("deal_id", deal_id).execute()
+    deal_summary = summary_res.data[0] if summary_res.data else {}
+
+    memories = await get_all_deal_memories(deal_id)
+
+    context = request.context if request else None
+    recommendations = await generate_recommendations(deal, deal_summary, memories, context)
+    return recommendations

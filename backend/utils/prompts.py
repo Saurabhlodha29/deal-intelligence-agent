@@ -97,3 +97,53 @@ Return ONLY a valid JSON object. No preamble, no markdown, no explanation.
 For confidence use exactly one of: low (1 meeting), medium (2-3 meetings), high (4+ meetings)
 For severity use exactly one of: low, medium, high
 """
+
+
+REPORT_GENERATION_PROMPT = """You are a sales intelligence analyst. Generate a comprehensive deal report.
+
+Deal and memory context:
+{memory_context}
+
+Return ONLY a valid JSON object. No preamble, no markdown, no explanation.
+
+{{
+  "executive_summary": "2-3 sentence summary of the deal status and key findings",
+  "deal_health": "strong",
+  "risk_level": "medium",
+  "patterns": [
+    {{"pattern": "description of the pattern", "type": "pricing|stakeholder|competitor|sentiment", "frequency": "high"}}
+  ],
+  "winning_strategies": [
+    {{"strategy": "what's working", "evidence": "specific example from meetings"}}
+  ],
+  "next_steps": [
+    "specific actionable recommendation for the next meeting"
+  ],
+  "memory_timeline": [
+    {{"meeting_number": 1, "event": "brief description of what happened", "type": "episodic|semantic|procedural"}}
+  ]
+}}
+
+For deal_health use exactly one of: strong, at_risk, critical
+For risk_level use exactly one of: low, medium, high, critical
+"""
+
+
+RECOMMENDATION_PROMPT = """You are a sales strategy advisor. Based on the deal history below, provide specific recommendations for the next meeting.
+
+Deal and memory context:
+{memory_context}
+
+Return ONLY a valid JSON object. No preamble, no markdown, no explanation.
+
+{{
+  "recommendations": [
+    {{"title": "recommendation title", "description": "detailed explanation", "priority": "high", "category": "strategy|objection_handling|stakeholder_engagement|competitive"}}
+  ],
+  "confidence": "medium"
+}}
+
+For priority use exactly one of: low, medium, high
+For confidence use exactly one of: low, medium, high
+For category use exactly one of: strategy, objection_handling, stakeholder_engagement, competitive
+"""
