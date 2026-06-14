@@ -3,7 +3,6 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 class MeetingCreate(BaseModel):
-    deal_id: str
     title: Optional[str] = None
     meeting_date: Optional[datetime] = None
 

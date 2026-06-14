@@ -13,18 +13,24 @@ def _headers() -> dict:
         "Content-Type": "application/json",
     }
 
+def _bank_url() -> str:
+    return f"{HINDSIGHT_BASE_URL}/default/banks/{settings.HINDSIGHT_PIPELINE_ID}"
+
 async def store_memory(content: str, metadata: dict) -> Optional[str]:
     """Store a single memory in Hindsight. Returns memory ID or None on failure."""
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
-                f"{HINDSIGHT_BASE_URL}/pipelines/{settings.HINDSIGHT_PIPELINE_ID}/memories",
+                f"{_bank_url()}/memories",
                 headers=_headers(),
-                json={"content": content, "metadata": metadata},
+                json={
+                    "items": [{"content": content, "context": str(metadata)}],
+                    "async": False,
+                },
             )
             resp.raise_for_status()
             data = resp.json()
-            return data.get("id") or data.get("memory_id")
+            return data.get("bank_id")
     except Exception as e:
         logger.error(f"Hindsight store_memory failed: {e}")
         return None
@@ -34,20 +40,18 @@ async def search_memories(query: str, filter_metadata: Optional[dict] = None, to
     try:
         payload = {
             "query": query,
-            "pipeline_id": settings.HINDSIGHT_PIPELINE_ID,
-            "top_k": top_k,
+            "budget": "mid",
+            "max_tokens": 4096,
         }
-        if filter_metadata:
-            payload["filter"] = filter_metadata
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
-                f"{HINDSIGHT_BASE_URL}/search",
+                f"{_bank_url()}/memories/recall",
                 headers=_headers(),
                 json=payload,
             )
             resp.raise_for_status()
             data = resp.json()
-            return data.get("results", data.get("memories", []))
+            return data.get("results", [])
     except Exception as e:
         logger.error(f"Hindsight search failed: {e}")
         return []
@@ -55,15 +59,15 @@ async def search_memories(query: str, filter_metadata: Optional[dict] = None, to
 async def get_memories_by_filter(filter_metadata: dict) -> list:
     """Retrieve all memories matching exact metadata fields."""
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.get(
-                f"{HINDSIGHT_BASE_URL}/pipelines/{settings.HINDSIGHT_PIPELINE_ID}/memories",
+                f"{_bank_url()}/memories/list",
                 headers=_headers(),
-                params=filter_metadata,
+                params={"limit": 100},
             )
             resp.raise_for_status()
             data = resp.json()
-            return data.get("results", data.get("memories", []))
+            return data.get("items", [])
     except Exception as e:
         logger.error(f"Hindsight get_memories failed: {e}")
         return []

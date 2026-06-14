@@ -78,22 +78,61 @@ export async function uploadAudio(meetingId: string, audioBlob: Blob): Promise<{
   return handleResponse(res);
 }
 
-export async function getMeetingIntelligence(meetingId: string): Promise<any> {
+export async function getMeetingIntelligence(meetingId: string): Promise<{
+  meeting_id: string;
+  intelligence?: {
+    key_insights?: string[];
+    action_items?: string[];
+    risk_factors?: string[];
+    next_steps?: string[];
+    stakeholder_sentiment?: Record<string, string>;
+    competitive_mentions?: string[];
+    budget_signals?: string[];
+    timeline_signals?: string[];
+  };
+  patterns?: {
+    decision_patterns?: string[];
+    communication_patterns?: string[];
+    risk_patterns?: string[];
+    opportunity_patterns?: string[];
+    cross_meeting_insights?: string[];
+  };
+}> {
   const res = await fetch(`${API_BASE}/api/v1/meetings/${meetingId}/intelligence`);
   return handleResponse(res);
 }
 
-export async function getDealMemory(dealId: string): Promise<any> {
+export async function getDealMemory(dealId: string): Promise<{
+  deal_id: string;
+  memories: Array<{
+    id: string;
+    content: string;
+    memory_type: string;
+    created_at: string;
+    metadata?: Record<string, unknown>;
+  }>;
+  summary?: string;
+  memory_count: number;
+}> {
   const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/memory`);
   return handleResponse(res);
 }
 
-export async function getDealBrief(dealId: string): Promise<any> {
+export async function getDealBrief(dealId: string): Promise<{
+  deal_id: string;
+  brief: string;
+  generated_at: string;
+}> {
   const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/brief`);
   return handleResponse(res);
 }
 
-export async function getDealSummary(dealId: string): Promise<any> {
+export async function getDealSummary(dealId: string): Promise<{
+  deal_id: string;
+  summary: string;
+  total_meetings: number;
+  meeting_count: number;
+}> {
   const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/summary`);
   return handleResponse(res);
 }

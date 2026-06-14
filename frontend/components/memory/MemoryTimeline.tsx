@@ -3,13 +3,18 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Brain, ClipboardList, Star } from "lucide-react";
+import { Brain, ClipboardList, Star, TrendingUp } from "lucide-react";
 
-// Expected memory API shape (simplified)
-interface MemoryResponse {
-  episodic: Array<{ meeting_number: number; date: string; summary: string }>;
-  semantic?: { patterns: string[]; emerged_after_meeting?: number };
-  procedural?: { what_works: string[]; what_doesnt_work: string[]; emerged_after_meeting?: number };
+interface MemoryEntry {
+  content: string;
+  metadata: Record<string, any>;
+}
+
+interface MemoryData {
+  episodic: MemoryEntry[];
+  semantic: MemoryEntry[];
+  procedural: MemoryEntry[];
+  total_count: number;
 }
 
 interface Props {
@@ -17,7 +22,7 @@ interface Props {
 }
 
 export default function MemoryTimeline({ dealId }: Props) {
-  const [data, setData] = useState<MemoryResponse | null>(null);
+  const [data, setData] = useState<MemoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,110 +43,134 @@ export default function MemoryTimeline({ dealId }: Props) {
     fetchMemory();
   }, [dealId]);
 
-  if (loading) return <div className="p-4">Loading memory…</div>;
-  if (error) return <div className="p-4 text-red-600">Error: {error}</div>;
+  if (loading) return <div className="p-4 text-gray-500 animate-pulse">Loading memory…</div>;
+  if (error) return <div className="p-4 text-red-600 border border-red-200 rounded bg-red-50">Error: {error}</div>;
   if (!data) return null;
 
-  const totalMemories = (data.episodic?.length ?? 0) + (data.semantic ? 1 : 0) + (data.procedural ? 1 : 0);
+  const totalMemories = data.total_count ?? 0;
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-2">
         <Brain className="h-6 w-6 text-indigo-600" />
         <h2 className="text-2xl font-semibold">What the Agent Has Learned</h2>
+        <Badge variant="outline" className="ml-auto">
+          {totalMemories} {totalMemories === 1 ? "memory" : "memories"}
+        </Badge>
       </div>
 
-      {/* Episodic Memories */}
-      {data.episodic && data.episodic.length > 0 && (
-        <section>
-          <Card className="bg-indigo-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="h-5 w-5" /> Meeting Records
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {data.episodic.map((e) => (
-                <div key={e.meeting_number} className="border border-indigo-200 rounded p-3 bg-white shadow-sm">
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Meeting #{e.meeting_number}</span>
-                    <span>{new Date(e.date).toLocaleDateString()}</span>
+      {/* Section 1: Episodic Memories */}
+      {data.episodic && data.episodic.length > 0 ? (
+        <Card className="border-indigo-200">
+          <CardHeader className="bg-indigo-50 rounded-t-lg">
+            <CardTitle className="flex items-center gap-2 text-indigo-800">
+              <ClipboardList className="h-5 w-5" />
+              Meeting Records
+              <Badge className="bg-indigo-600 text-white ml-auto">
+                {data.episodic.length} {data.episodic.length === 1 ? "record" : "records"}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-3">
+            {data.episodic.map((entry, idx) => {
+              const mnum = entry.metadata?.meeting_number ?? idx + 1;
+              const sentiment = entry.metadata?.sentiment;
+              return (
+                <div key={idx} className="border border-indigo-100 rounded-lg p-3 bg-white shadow-sm">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-semibold text-sm text-indigo-700">
+                      Meeting #{mnum}
+                    </span>
+                    {sentiment && (
+                      <Badge variant="outline" className={
+                        sentiment === "positive" ? "text-green-700 border-green-300" :
+                        sentiment === "negative" ? "text-red-700 border-red-300" :
+                        sentiment === "mixed" ? "text-yellow-700 border-yellow-300" :
+                        "text-gray-600 border-gray-300"
+                      }>
+                        {sentiment}
+                      </Badge>
+                    )}
                   </div>
-                  <p className="mt-1 text-gray-800">{e.summary}</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                    {entry.content}
+                  </p>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        </section>
+              );
+            })}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-dashed">
+          <CardContent className="py-6 text-center text-gray-400 text-sm">
+            No meeting records yet. Process your first meeting to create memory.
+          </CardContent>
+        </Card>
       )}
 
-      {/* Semantic Memories */}
-      {data.semantic && (
-        <section>
-          <Card className="bg-blue-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5" /> Patterns Discovered
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data.semantic.emerged_after_meeting && (
-                <Badge className="mb-2">Emerged after Meeting {data.semantic.emerged_after_meeting}</Badge>
+      {/* Section 2: Semantic Memory (Patterns) */}
+      {data.semantic && data.semantic.length > 0 ? (
+        <Card className="border-blue-200">
+          <CardHeader className="bg-blue-50 rounded-t-lg">
+            <CardTitle className="flex items-center gap-2 text-blue-800">
+              <TrendingUp className="h-5 w-5" />
+              Patterns Discovered
+              {data.semantic[0]?.metadata?.updated_after_meeting && (
+                <Badge className="bg-blue-600 text-white ml-auto text-xs">
+                  Emerged after Meeting {data.semantic[0].metadata.updated_after_meeting}
+                </Badge>
               )}
-              <ul className="list-disc list-inside space-y-1">
-                {data.semantic.patterns.map((p, i) => (
-                  <li key={i}>{p}</li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </section>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+              {data.semantic[0].content}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-dashed border-blue-200">
+          <CardContent className="py-6 text-center text-sm">
+            <p className="text-blue-400">Patterns will be detected after your 2nd meeting</p>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Procedural Memories */}
-      {data.procedural && (
-        <section>
-          <Card className="bg-green-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5" /> Winning Strategies
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {data.procedural.emerged_after_meeting && (
-                <Badge className="mb-2">Derived after Meeting {data.procedural.emerged_after_meeting}</Badge>
+      {/* Section 3: Procedural Memory (Strategies) */}
+      {data.procedural && data.procedural.length > 0 ? (
+        <Card className="border-green-200">
+          <CardHeader className="bg-green-50 rounded-t-lg">
+            <CardTitle className="flex items-center gap-2 text-green-800">
+              <Star className="h-5 w-5" />
+              Winning Strategies
+              {data.procedural[0]?.metadata?.derived_after_meeting && (
+                <Badge className="bg-green-600 text-white ml-auto text-xs">
+                  Derived after Meeting {data.procedural[0].metadata.derived_after_meeting}
+                </Badge>
               )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-medium mb-1">What Works</h4>
-                  <ul className="list-disc list-inside space-y-1">
-                    {data.procedural.what_works.map((w, i) => (
-                      <li key={i}>{w}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-1">What Doesn’t Work</h4>
-                  <ul className="list-disc list-inside space-y-1">
-                    {data.procedural.what_doesnt_work.map((w, i) => (
-                      <li key={i}>{w}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+              {data.procedural[0].content}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-dashed border-green-200">
+          <CardContent className="py-6 text-center text-sm">
+            <p className="text-green-400">Strategies will be derived after your 3rd meeting</p>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Fallback when few meetings */}
-      {data.episodic && data.episodic.length < 2 && (
-        <div className="text-center text-gray-600 italic">More patterns will emerge as you log more meetings.</div>
-      )}
-
-      {/* Footer summary */}
-      <div className="text-sm text-gray-500">The agent has {totalMemories} memories of this deal and gets smarter with every meeting.</div>
+      {/* Footer */}
+      <p className="text-xs text-gray-400 text-center pb-2">
+        {totalMemories === 0
+          ? "Record your first meeting to begin building deal memory."
+          : `The agent has ${totalMemories} ${totalMemories === 1 ? "memory" : "memories"} of this deal and gets smarter with every meeting.`}
+      </p>
     </div>
   );
 }

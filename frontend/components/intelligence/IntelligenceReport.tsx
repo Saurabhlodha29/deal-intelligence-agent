@@ -93,7 +93,6 @@ function SentimentHeader({ data }: { data: Intelligence }) {
 }
 
 function ObjectionsList({ objections }: { objections: Intelligence["objections"] }) {
-  const severityColors: Record<string, string> = { high: "red", medium: "yellow", low: "gray" };
   return (
     <Card>
       <CardHeader><CardTitle>Objections</CardTitle></CardHeader>
