@@ -70,11 +70,6 @@ export default function DealDetailPage() {
     getDealSummary(dealId).then(setSummary);
   };
 
-  const handleRetryComplete = () => {
-    // Refresh meetings after retry
-    getMeetings(dealId).then(setMeetings);
-  };
-
   const handleSaveNote = async () => {
     if (!noteText.trim()) return;
     setNoteSaving(true);
@@ -191,7 +186,12 @@ export default function DealDetailPage() {
           ) : (
             <div className="space-y-3">
               {meetings.map((m) => (
-                <MeetingCard key={m.id} meeting={m} dealId={dealId} onRetryComplete={handleRetryComplete} />
+                <MeetingCard
+                  key={m.id}
+                  meeting={m}
+                  dealId={dealId}
+                  onDeleted={(deletedId) => setMeetings((prev) => prev.filter((x) => x.id !== deletedId))}
+                />
               ))}
             </div>
           )}

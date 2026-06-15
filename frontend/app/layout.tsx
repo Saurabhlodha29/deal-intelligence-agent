@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${geist.className} bg-slate-50 min-h-screen`}>
+      <body className={`${geist.className} min-h-screen`}>
         {/* Dark sticky navigation bar */}
         <nav className="sticky top-0 z-50 bg-slate-900 border-b border-slate-800">
           <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">

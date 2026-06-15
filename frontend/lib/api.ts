@@ -104,15 +104,22 @@ export async function getMeetingIntelligence(meetingId: string): Promise<{
 
 export async function getDealMemory(dealId: string): Promise<{
   deal_id: string;
-  memories: Array<{
-    id: string;
+  episodic: Array<{
     content: string;
-    memory_type: string;
-    created_at: string;
-    metadata?: Record<string, unknown>;
+    metadata: Record<string, unknown>;
+    memory_type?: string;
   }>;
-  summary?: string;
-  memory_count: number;
+  semantic: Array<{
+    content: string;
+    metadata: Record<string, unknown>;
+    memory_type?: string;
+  }>;
+  procedural: Array<{
+    content: string;
+    metadata: Record<string, unknown>;
+    memory_type?: string;
+  }>;
+  total_count: number;
 }> {
   const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/memory`);
   return handleResponse(res);
@@ -204,6 +211,13 @@ export async function addManualNote(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ note }),
+  });
+  return handleResponse(res);
+}
+
+export async function deleteMeeting(meetingId: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/api/v1/meetings/${meetingId}`, {
+    method: "DELETE",
   });
   return handleResponse(res);
 }

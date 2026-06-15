@@ -424,6 +424,44 @@ async def retry_extraction(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.delete("/meetings/{meeting_id}")
+def delete_meeting(meeting_id: str):
+    """Delete a meeting and its associated intelligence record."""
+    try:
+        res = supabase.table("meetings").select("id, deal_id").eq("id", meeting_id).execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Meeting not found")
+
+        deal_id = res.data[0]["deal_id"]
+
+        supabase.table("meeting_intelligence").delete().eq("meeting_id", meeting_id).execute()
+        supabase.table("meetings").delete().eq("id", meeting_id).execute()
+
+        remaining = (
+            supabase.table("meetings")
+            .select("id")
+            .eq("deal_id", deal_id)
+            .order("created_at")
+            .execute()
+        )
+        for i, m in enumerate(remaining.data or [], start=1):
+            supabase.table("meetings").update({"meeting_number": i}).eq("id", m["id"]).execute()
+
+        summary = supabase.table("deal_memory_summary").select("id, total_meetings").eq("deal_id", deal_id).execute()
+        if summary.data:
+            current = summary.data[0].get("total_meetings", 1)
+            supabase.table("deal_memory_summary").update({
+                "total_meetings": max(0, current - 1)
+            }).eq("deal_id", deal_id).execute()
+
+        return {"success": True, "deleted_meeting_id": meeting_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/meetings/{meeting_id}/intelligence")
 def get_meeting_intelligence(meeting_id: str):
     """Return extracted intelligence for a completed meeting."""

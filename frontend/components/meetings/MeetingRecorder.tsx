@@ -11,7 +11,7 @@ interface Props {
   onMeetingComplete: (meetingId: string) => void;
 }
 
-type State = "idle" | "recording" | "uploading" | "processing" | "done" | "error";
+type State = "idle" | "naming" | "recording" | "uploading" | "processing" | "done" | "error";
 
 const STEPS = ["transcribing", "extracting", "storing_memory", "complete"] as const;
 const STEP_LABELS: Record<string, string> = {
@@ -30,6 +30,7 @@ export default function MeetingRecorder({ dealId, onMeetingComplete }: Props) {
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatus | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [meetingTitle, setMeetingTitle] = useState("");
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -40,8 +41,14 @@ export default function MeetingRecorder({ dealId, onMeetingComplete }: Props) {
 
   const startRecording = useCallback(async () => {
     setErrorMsg(null);
+    setMeetingTitle("");
+    setState("naming");
+  }, []);
+
+  const beginRecording = useCallback(async () => {
+    setErrorMsg(null);
     try {
-      const title = `Meeting — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+      const title = meetingTitle.trim() || `Meeting — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
       const meeting = await createMeeting(dealId, { title });
       setMeetingId(meeting.id);
 
@@ -62,7 +69,7 @@ export default function MeetingRecorder({ dealId, onMeetingComplete }: Props) {
         : `Could not start recording: ${err.message}`);
       setState("error");
     }
-  }, [dealId]);
+  }, [dealId, meetingTitle]);
 
   const stopRecording = useCallback(async () => {
     if (!recorderRef.current || !meetingId) return;
@@ -118,6 +125,43 @@ export default function MeetingRecorder({ dealId, onMeetingComplete }: Props) {
           >
             <Mic className="h-4 w-4" /> Start Meeting
           </Button>
+        </div>
+      )}
+
+      {state === "naming" && (
+        <div className="space-y-3">
+          <div>
+            <p className="font-medium text-slate-800 text-sm">Name this meeting</p>
+            <p className="text-xs text-slate-400 mt-0.5">Give it a title, or leave blank for an auto-generated name</p>
+          </div>
+          <input
+            type="text"
+            value={meetingTitle}
+            onChange={(e) => setMeetingTitle(e.target.value)}
+            placeholder="e.g. Q4 Budget Review, Demo Follow-up..."
+            className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent placeholder:text-slate-300"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") beginRecording();
+              if (e.key === "Escape") { setState("idle"); setMeetingTitle(""); }
+            }}
+          />
+          <div className="flex items-center gap-2 justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setState("idle"); setMeetingTitle(""); }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={beginRecording}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Mic className="h-3.5 w-3.5" /> Start Recording
+            </Button>
+          </div>
         </div>
       )}
 
