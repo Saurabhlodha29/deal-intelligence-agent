@@ -176,3 +176,34 @@ export async function getRecommendations(dealId: string, context?: string): Prom
   });
   return handleResponse(res);
 }
+
+export async function completeActionItem(
+  meetingId: string,
+  payload: {
+    action_item_index: number;
+    action_item_text: string;
+    resolution_note?: string;
+    deal_id: string;
+    company: string;
+    meeting_number: number;
+  }
+): Promise<{ success: boolean; memory_stored: boolean }> {
+  const res = await fetch(`${API_BASE}/api/v1/meetings/${meetingId}/complete-action-item`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function addManualNote(
+  dealId: string,
+  note: string
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/deals/${dealId}/add-note`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ note }),
+  });
+  return handleResponse(res);
+}

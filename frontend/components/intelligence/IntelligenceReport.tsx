@@ -5,6 +5,7 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { completeActionItem } from "@/lib/api";
 
 // Types based on backend intelligence response
 interface Intelligence {
@@ -14,8 +15,10 @@ interface Intelligence {
   objections: { text: string; severity: "low" | "medium" | "high"; was_handled: boolean }[];
   competitors: { name: string; context: string }[];
   stakeholders: { name: string; role: string; sentiment: "positive" | "neutral" | "skeptical" | "negative"; influence: "low" | "medium" | "high" }[];
-  action_items: { item: string; owner: "us" | "prospect" | "both"; deadline: string | null }[];
+  action_items: { item: string; owner: "us" | "prospect" | "both"; deadline: string | null; completed?: boolean; resolution_note?: string }[];
   risks: { risk: string; severity: "low" | "medium" | "high" }[];
+  company?: string;
+  meeting_number?: number;
 }
 
 interface Props {
@@ -60,7 +63,13 @@ export default function IntelligenceReport({ meetingId, dealId }: Props) {
       <ObjectionsList objections={data.objections} />
       <StakeholderGrid stakeholders={data.stakeholders} />
       <CompetitorTags competitors={data.competitors} />
-      <ActionItemsList items={data.action_items} />
+      <ActionItemsList
+        items={data.action_items}
+        meetingId={meetingId}
+        dealId={dealId}
+        company={data.company || ""}
+        meetingNumber={data.meeting_number || 1}
+      />
       <RiskIndicator risks={data.risks} />
     </div>
   );
@@ -163,19 +172,126 @@ function CompetitorTags({ competitors }: { competitors: Intelligence["competitor
   );
 }
 
-function ActionItemsList({ items }: { items: Intelligence["action_items"] }) {
+function ActionItemsList({ items, meetingId, dealId, company, meetingNumber }: {
+  items: Intelligence["action_items"];
+  meetingId: string;
+  dealId: string;
+  company: string;
+  meetingNumber: number;
+}) {
+  const [localItems, setLocalItems] = useState(
+    items.map((item) => ({ ...item, completed: item.completed || false, showNote: false, note: item.resolution_note || "", saving: false }))
+  );
+
+  const handleCheck = async (idx: number) => {
+    setLocalItems((prev) =>
+      prev.map((item, i) =>
+        i === idx ? { ...item, showNote: !item.showNote } : item
+      )
+    );
+  };
+
+  const handleSave = async (idx: number) => {
+    const item = localItems[idx];
+    setLocalItems((prev) => prev.map((it, i) => i === idx ? { ...it, saving: true } : it));
+
+    try {
+      await completeActionItem(meetingId, {
+        action_item_index: idx,
+        action_item_text: item.item,
+        resolution_note: item.note,
+        deal_id: dealId,
+        company: company,
+        meeting_number: meetingNumber,
+      });
+      setLocalItems((prev) =>
+        prev.map((it, i) =>
+          i === idx ? { ...it, completed: true, showNote: false, saving: false } : it
+        )
+      );
+    } catch {
+      setLocalItems((prev) => prev.map((it, i) => i === idx ? { ...it, saving: false } : it));
+    }
+  };
+
+  if (!items || items.length === 0) return <p className="text-sm text-gray-400">None identified</p>;
+
   return (
     <Card>
       <CardHeader><CardTitle>Action Items</CardTitle></CardHeader>
-      <CardContent className="space-y-2">
-        {items.map((a, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <input type="checkbox" readOnly className="h-4 w-4 rounded" />
-            <span>{a.item}</span>
-            <Badge variant="secondary" className="ml-auto">Owner: {a.owner}</Badge>
-            {a.deadline && <Badge variant="outline">Due: {a.deadline}</Badge>}
+      <CardContent className="space-y-3">
+        {localItems.map((item, idx) => (
+          <div key={idx} className={`rounded-lg border p-3 transition-colors ${item.completed ? "bg-emerald-50 border-emerald-200" : "bg-white border-slate-200"}`}>
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={item.completed}
+                onChange={() => !item.completed && handleCheck(idx)}
+                disabled={item.completed}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 cursor-pointer"
+              />
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm ${item.completed ? "line-through text-slate-400" : "text-slate-800"}`}>
+                  {item.item}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {item.owner && (
+                    <Badge variant="secondary" className="text-xs">Owner: {item.owner}</Badge>
+                  )}
+                  {item.deadline && (
+                    <Badge variant="outline" className="text-xs">Due: {item.deadline}</Badge>
+                  )}
+                  {item.completed && item.resolution_note && (
+                    <span className="text-xs text-emerald-600 italic">✓ {item.resolution_note}</span>
+                  )}
+                </div>
+              </div>
+              {!item.completed && (
+                <span className="text-xs text-slate-400 cursor-pointer hover:text-indigo-600"
+                  onClick={() => handleCheck(idx)}>
+                  Mark done
+                </span>
+              )}
+            </div>
+
+            {item.showNote && !item.completed && (
+              <div className="mt-3 ml-7 space-y-2">
+                <p className="text-xs text-slate-500">
+                  Add a resolution note (what was done, result, any context):
+                </p>
+                <textarea
+                  value={item.note}
+                  onChange={(e) => setLocalItems((prev) =>
+                    prev.map((it, i) => i === idx ? { ...it, note: e.target.value } : it)
+                  )}
+                  placeholder="e.g. Sent phased pricing deck. CFO responded positively via email."
+                  className="w-full text-sm p-2 border border-slate-200 rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                  rows={2}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleSave(idx)}
+                    disabled={item.saving}
+                    className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {item.saving ? "Saving to memory..." : "✓ Save & Update Memory"}
+                  </button>
+                  <button
+                    onClick={() => setLocalItems((prev) =>
+                      prev.map((it, i) => i === idx ? { ...it, showNote: false } : it)
+                    )}
+                    className="text-xs px-3 py-1.5 border border-slate-200 rounded-md hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
+        <p className="text-xs text-slate-400 mt-2">
+          ✦ Completing action items updates the agent&apos;s memory for your next pre-meeting brief.
+        </p>
       </CardContent>
     </Card>
   );

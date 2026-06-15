@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Deal, Meeting, DealSummary } from "@/lib/types";
-import { getDeal, getMeetings, getDealSummary } from "@/lib/api";
+import { getDeal, getMeetings, getDealSummary, addManualNote, uploadAudio, createMeeting } from "@/lib/api";
 import MeetingCard from "@/components/meetings/MeetingCard";
-import NewMeetingModal from "@/components/meetings/NewMeetingModal";
 import MeetingRecorder from "@/components/meetings/MeetingRecorder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +38,11 @@ export default function DealDetailPage() {
   const [summary, setSummary] = useState<DealSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -60,11 +64,7 @@ export default function DealDetailPage() {
     fetchData();
   }, [dealId]);
 
-  const handleMeetingCreated = (newMeeting: Meeting) => {
-    setMeetings((prev) => [...prev, newMeeting]);
-  };
-
-  const handleMeetingComplete = (completedMeetingId: string) => {
+  const handleMeetingComplete = () => {
     // Refresh meetings and summary after processing
     getMeetings(dealId).then(setMeetings);
     getDealSummary(dealId).then(setSummary);
@@ -73,6 +73,39 @@ export default function DealDetailPage() {
   const handleRetryComplete = () => {
     // Refresh meetings after retry
     getMeetings(dealId).then(setMeetings);
+  };
+
+  const handleSaveNote = async () => {
+    if (!noteText.trim()) return;
+    setNoteSaving(true);
+    try {
+      await addManualNote(dealId, noteText.trim());
+      setNoteText("");
+      setNoteSaved(true);
+      setTimeout(() => setNoteSaved(false), 3000);
+    } catch (e) {
+      console.error("Failed to save note:", e);
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
+  const handleUploadRecording = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !deal) return;
+    setUploadingFile(true);
+    try {
+      const title = `Uploaded: ${file.name.replace(/\.[^/.]+$/, "")} — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+      const meeting = await createMeeting(dealId, { title });
+      const audioBlob = new Blob([await file.arrayBuffer()], { type: file.type });
+      await uploadAudio(meeting.id, audioBlob);
+      getMeetings(dealId).then(setMeetings);
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   if (loading) {
@@ -135,7 +168,23 @@ export default function DealDetailPage() {
           {/* Meetings List */}
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Meetings</h2>
-            <NewMeetingModal dealId={dealId} onCreated={handleMeetingCreated} />
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*,.webm,.mp4,.mp3,.wav,.m4a"
+                className="hidden"
+                onChange={handleUploadRecording}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFile}
+              >
+                {uploadingFile ? "⏳ Uploading..." : "📁 Upload Recording"}
+              </Button>
+            </>
           </div>
           {meetings.length === 0 ? (
             <p className="text-gray-500 text-sm">No meetings yet. Record one above or create manually.</p>
@@ -190,6 +239,28 @@ export default function DealDetailPage() {
                   </Link>
                 </div>
               )}
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <p className="text-xs font-medium text-slate-600 mb-2">
+                  📝 Tell the agent something
+                </p>
+                <p className="text-xs text-slate-400 mb-2">
+                  Happened outside a meeting? Add context here.
+                </p>
+                <textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="e.g. CFO emailed budget approval. We lowered price by 10%."
+                  className="w-full text-xs p-2 border border-slate-200 rounded resize-none focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                  rows={3}
+                />
+                <button
+                  onClick={handleSaveNote}
+                  disabled={noteSaving || !noteText.trim()}
+                  className="mt-2 w-full text-xs py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                >
+                  {noteSaving ? "Saving to memory..." : noteSaved ? "✓ Saved to agent memory!" : "Save to Agent Memory"}
+                </button>
+              </div>
             </CardContent>
           </Card>
         </div>

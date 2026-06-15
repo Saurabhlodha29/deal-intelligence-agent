@@ -3,12 +3,13 @@
 
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createDeal } from "@/lib/api";
 import { Deal } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface CreateDealModalProps {
   onCreated: (deal: Deal) => void;
@@ -59,7 +60,7 @@ export default function CreateDealModal({ onCreated }: CreateDealModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger className={cn(buttonVariants())}>
         New Deal
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">

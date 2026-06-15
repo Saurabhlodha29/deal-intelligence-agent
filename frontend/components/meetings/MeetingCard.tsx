@@ -1,136 +1,58 @@
 "use client";
 
-import React, { useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Meeting } from "@/lib/types";
 import Link from "next/link";
+import { Meeting } from "@/lib/types";
 import { format } from "date-fns";
-import { retryTranscription, retryExtraction, getMeetingStatus } from "@/lib/api";
 
-interface MeetingCardProps {
+interface Props {
   meeting: Meeting;
   dealId: string;
   onRetryComplete?: () => void;
 }
 
-const statusColors: Record<Meeting["processing_status"], string> = {
-  pending: "bg-gray-200 text-gray-800",
-  transcribing: "bg-blue-200 text-blue-800",
-  extracting: "bg-indigo-200 text-indigo-800",
-  storing_memory: "bg-purple-200 text-purple-800",
-  complete: "bg-green-200 text-green-800",
-  failed: "bg-red-200 text-red-800",
+const statusConfig: Record<string, { label: string; dot: string; text: string; bg: string }> = {
+  complete:       { label: "Complete",       dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50" },
+  transcribing:   { label: "Transcribing…",  dot: "bg-blue-400 animate-pulse", text: "text-blue-700", bg: "bg-blue-50" },
+  extracting:     { label: "Extracting…",    dot: "bg-indigo-400 animate-pulse", text: "text-indigo-700", bg: "bg-indigo-50" },
+  storing_memory: { label: "Updating memory…",dot: "bg-violet-400 animate-pulse", text: "text-violet-700", bg: "bg-violet-50" },
+  pending:        { label: "Pending",         dot: "bg-slate-300", text: "text-slate-500", bg: "bg-slate-50" },
+  failed:         { label: "Failed",          dot: "bg-red-500", text: "text-red-600", bg: "bg-red-50" },
 };
 
-export default function MeetingCard({ meeting, dealId, onRetryComplete }: MeetingCardProps) {
-  const [retrying, setRetrying] = useState(false);
-  const [retryStatus, setRetryStatus] = useState<string | null>(null);
+export default function MeetingCard({ meeting, dealId }: Props) {
+  const config = statusConfig[meeting.processing_status] || statusConfig.pending;
+  const isComplete = meeting.processing_status === "complete";
+  const title = meeting.title || `Meeting #${meeting.meeting_number || ""}`;
 
-  const formattedDate = format(new Date(meeting.meeting_date), "PPP p");
-  const title = meeting.title ?? `Meeting #${meeting.meeting_number ?? ""}`;
-
-  const hasTranscript = meeting.processing_status === "failed" && meeting.processing_error?.includes("extraction");
-  const hasAudio = meeting.processing_status === "failed" && meeting.processing_error?.includes("Transcription");
-
-  const handleRetryTranscription = async () => {
-    setRetrying(true);
-    setRetryStatus("Starting retry...");
-    try {
-      await retryTranscription(meeting.id);
-      // Poll for completion
-      const pollInterval = setInterval(async () => {
-        const status = await getMeetingStatus(meeting.id);
-        setRetryStatus(status.step_message);
-        if (status.status === "complete" || status.status === "failed") {
-          clearInterval(pollInterval);
-          setRetrying(false);
-          onRetryComplete?.();
-        }
-      }, 3000);
-    } catch (err) {
-      setRetryStatus(err instanceof Error ? err.message : "Retry failed");
-      setRetrying(false);
-    }
-  };
-
-  const handleRetryExtraction = async () => {
-    setRetrying(true);
-    setRetryStatus("Starting extraction retry...");
-    try {
-      await retryExtraction(meeting.id);
-      // Poll for completion
-      const pollInterval = setInterval(async () => {
-        const status = await getMeetingStatus(meeting.id);
-        setRetryStatus(status.step_message);
-        if (status.status === "complete" || status.status === "failed") {
-          clearInterval(pollInterval);
-          setRetrying(false);
-          onRetryComplete?.();
-        }
-      }, 3000);
-    } catch (err) {
-      setRetryStatus(err instanceof Error ? err.message : "Retry failed");
-      setRetrying(false);
-    }
-  };
-
-  const content = (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="text-lg font-medium">{title}</CardTitle>
-        <Badge className={statusColors[meeting.processing_status]}>
-          {meeting.processing_status.replace("_", " ")}
-        </Badge>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <p className="text-sm text-gray-600">{formattedDate}</p>
-        
-        {meeting.processing_error && (
-          <p className="text-xs text-red-600 truncate" title={meeting.processing_error}>
-            {meeting.processing_error}
+  const CardContent = (
+    <div className={`
+      bg-white border border-slate-200 rounded-xl p-4 shadow-sm
+      ${isComplete ? "hover:shadow-md hover:border-slate-300 cursor-pointer transition-all duration-200" : ""}
+    `}>
+      <div className="flex items-center justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-slate-900 text-sm truncate">{title}</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {format(new Date(meeting.meeting_date), "MMM d, yyyy · h:mm a")}
           </p>
-        )}
-
-        {meeting.processing_status === "failed" && (
-          <div className="flex gap-2 flex-wrap">
-            {meeting.processing_error?.includes("Transcription") && (
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={handleRetryTranscription}
-                disabled={retrying}
-              >
-                {retrying ? "Retrying..." : "Retry Transcription"}
-              </Button>
-            )}
-            {meeting.processing_error?.includes("extraction") && (
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={handleRetryExtraction}
-                disabled={retrying}
-              >
-                {retrying ? "Retrying..." : "Retry Extraction"}
-              </Button>
-            )}
-          </div>
-        )}
-
-        {retryStatus && (
-          <p className="text-xs text-blue-600">{retryStatus}</p>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+        <div className={`ml-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full ${config.bg}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
+          <span className={`text-xs font-medium ${config.text}`}>{config.label}</span>
+        </div>
+      </div>
+      {meeting.processing_status === "failed" && meeting.processing_error && (
+        <p className="mt-2 text-xs text-red-500 truncate">{meeting.processing_error}</p>
+      )}
+    </div>
   );
 
-  if (meeting.processing_status === "complete") {
+  if (isComplete) {
     return (
       <Link href={`/deals/${dealId}/meeting/${meeting.id}`}>
-        {content}
+        {CardContent}
       </Link>
     );
   }
-  return content;
+  return CardContent;
 }

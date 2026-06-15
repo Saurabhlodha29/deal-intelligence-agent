@@ -3,11 +3,12 @@
 
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createMeeting } from "@/lib/api";
 import { Meeting } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface NewMeetingModalProps {
   dealId: string;
@@ -38,7 +39,7 @@ export default function NewMeetingModal({ dealId, onCreated }: NewMeetingModalPr
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger className={cn(buttonVariants())}>
         New Meeting
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">

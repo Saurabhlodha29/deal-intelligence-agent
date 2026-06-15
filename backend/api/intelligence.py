@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 from config import settings
 from db.client import supabase
-from services.memory_manager import get_all_deal_memories
+from services.memory_manager import get_all_deal_memories, store_action_completion_memory, store_manual_note
 from services.report_generator import generate_report, generate_recommendations
 from utils.prompts import BRIEF_GENERATION_PROMPT
 
@@ -163,3 +163,90 @@ async def get_recommendations(deal_id: str, request: RecommendRequest = None):
     context = request.context if request else None
     recommendations = await generate_recommendations(deal, deal_summary, memories, context)
     return recommendations
+
+
+@router.post("/meetings/{meeting_id}/complete-action-item")
+async def complete_action_item(meeting_id: str, payload: dict):
+    """Mark an action item as completed and store the completion in Hindsight memory."""
+    try:
+        deal_id = payload.get("deal_id", "")
+        company = payload.get("company", "Unknown")
+        action_item_text = payload.get("action_item_text", "")
+        resolution_note = payload.get("resolution_note", "")
+        meeting_number = payload.get("meeting_number", 1)
+        action_item_index = payload.get("action_item_index", 0)
+
+        if not deal_id or not action_item_text:
+            raise HTTPException(status_code=400, detail="deal_id and action_item_text are required")
+
+        # Update the action item in Supabase to mark as completed
+        intel_res = (
+            supabase.table("meeting_intelligence")
+            .select("action_items")
+            .eq("meeting_id", meeting_id)
+            .execute()
+        )
+        if intel_res.data:
+            action_items = intel_res.data[0].get("action_items", [])
+            if 0 <= action_item_index < len(action_items):
+                action_items[action_item_index]["completed"] = True
+                action_items[action_item_index]["resolution_note"] = resolution_note
+                supabase.table("meeting_intelligence").update(
+                    {"action_items": action_items}
+                ).eq("meeting_id", meeting_id).execute()
+
+        # Store the completion as a new episodic memory in Hindsight
+        memory_id = await store_action_completion_memory(
+            deal_id=deal_id,
+            company=company,
+            action_item=action_item_text,
+            resolution_note=resolution_note,
+            meeting_number=meeting_number,
+        )
+
+        return {
+            "success": True,
+            "memory_stored": memory_id is not None,
+            "memory_id": memory_id,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"complete_action_item failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/deals/{deal_id}/add-note")
+async def add_manual_note(deal_id: str, payload: dict):
+    """Add a manual context note that gets stored directly in Hindsight memory."""
+    try:
+        note = payload.get("note", "").strip()
+        if not note:
+            raise HTTPException(status_code=400, detail="note cannot be empty")
+
+        # Get company name
+        deal_res = supabase.table("deals").select("company, name").eq("id", deal_id).execute()
+        if not deal_res.data:
+            raise HTTPException(status_code=404, detail="Deal not found")
+        company = deal_res.data[0]["company"]
+
+        # Store in Hindsight
+        memory_id = await store_manual_note(
+            deal_id=deal_id,
+            company=company,
+            note=note,
+        )
+
+        return {
+            "success": True,
+            "memory_stored": memory_id is not None,
+            "memory_id": memory_id,
+            "message": "Note saved to agent memory. It will appear in your next pre-meeting brief.",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"add_manual_note failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
