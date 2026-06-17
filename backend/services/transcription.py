@@ -23,7 +23,7 @@ SUPPORTED_EXTENSIONS = set(EXTENSION_TO_MIME.keys())
 def normalize_filename(filename: str) -> str:
     """Ensure filename has a recognized audio extension for Groq Whisper."""
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    if ext in SUPPORTED_EXTENSIONS:
+    if f".{ext}" in SUPPORTED_EXTENSIONS:
         return filename
     return f"{filename}.webm"
 
