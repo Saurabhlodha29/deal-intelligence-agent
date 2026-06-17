@@ -23,12 +23,14 @@ export default function MeetingDetailPage() {
   }, [meetingId]);
 
   return (
-    <div className="p-4 max-w-5xl mx-auto">
-      <div className="mb-4 flex items-center gap-4">
-        <Link href={`/deals/${dealId}`}>
-          <Button variant="outline" size="sm">← Back to Deal</Button>
-        </Link>
-        {meetingTitle && <h1 className="text-2xl font-bold">{meetingTitle}</h1>}
+    <div className="space-y-5">
+      <div className="glass-surface p-5">
+        <div className="mb-0 flex items-center gap-4">
+          <Link href={`/deals/${dealId}`}>
+            <Button variant="ghost" size="sm" className="text-slate-500 hover:text-slate-700">← Back to Deal</Button>
+          </Link>
+          {meetingTitle && <h1 className="text-2xl font-bold text-slate-900">{meetingTitle}</h1>}
+        </div>
       </div>
       {ready && <IntelligenceReport meetingId={meetingId} dealId={dealId} />}
     </div>

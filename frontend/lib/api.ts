@@ -68,9 +68,10 @@ export async function getMeetingStatus(meetingId: string): Promise<ProcessingSta
   return handleResponse(res);
 }
 
-export async function uploadAudio(meetingId: string, audioBlob: Blob): Promise<{ meeting_id: string; status: string }> {
+export async function uploadAudio(meetingId: string, audioBlob: Blob, filename?: string): Promise<{ meeting_id: string; status: string }> {
   const formData = new FormData();
-  formData.append("audio", audioBlob, `meeting_${meetingId}.webm`);
+  const name = filename || `meeting_${meetingId}.webm`;
+  formData.append("audio", audioBlob, name);
   const res = await fetch(`${API_BASE}/api/v1/meetings/${meetingId}/upload`, {
     method: "POST",
     body: formData,

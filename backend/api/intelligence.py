@@ -1,6 +1,7 @@
 import json
 import logging
 import httpx
+import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -24,24 +25,45 @@ async def _call_groq_for_brief(prompt: str) -> dict:
         "Content-Type": "application/json",
     }
     for model in ["qwen/qwen3-32b", "llama-3.3-70b-versatile"]:
-        try:
-            async with httpx.AsyncClient(timeout=60) as client:
-                resp = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers=headers,
-                    json={
-                        "model": model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 2000,
-                        "temperature": 0.2,
-                    },
-                )
-                resp.raise_for_status()
-                raw = resp.json()["choices"][0]["message"]["content"]
-                cleaned = raw.replace("```json", "").replace("```", "").strip()
-                return json.loads(cleaned)
-        except Exception as e:
-            logger.warning(f"Brief generation with {model} failed: {e}")
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=120) as client:
+                    resp = await client.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers=headers,
+                        json={
+                            "model": model,
+                            "messages": [{"role": "user", "content": prompt}],
+                            "max_tokens": 2000,
+                            "temperature": 0.2,
+                        },
+                    )
+                    if resp.status_code == 429:
+                        wait = 2 ** attempt * 2
+                        logger.warning(f"Rate limited on {model} (attempt {attempt+1}), waiting {wait}s")
+                        await asyncio.sleep(wait)
+                        continue
+                    resp.raise_for_status()
+                    body = resp.json()
+                    choices = body.get("choices", [])
+                    if not choices or not choices[0].get("message", {}).get("content"):
+                        logger.warning(f"Empty response from {model} (attempt {attempt+1})")
+                        await asyncio.sleep(2)
+                        continue
+                    raw = choices[0]["message"]["content"]
+                    cleaned = raw.replace("```json", "").replace("```", "").strip()
+                    if not cleaned:
+                        logger.warning(f"Empty cleaned content from {model}")
+                        await asyncio.sleep(2)
+                        continue
+                    return json.loads(cleaned)
+            except httpx.RemoteProtocolError:
+                wait = 2 ** attempt * 2
+                logger.warning(f"Connection error on {model} (attempt {attempt+1}), waiting {wait}s")
+                await asyncio.sleep(wait)
+            except Exception as e:
+                logger.warning(f"Brief generation with {model} failed: {e}")
+                break
     return {}
 
 
@@ -106,25 +128,39 @@ async def get_deal_brief(deal_id: str):
 
 
 @router.get("/deals/{deal_id}/summary")
-def get_deal_summary(deal_id: str):
+async def get_deal_summary(deal_id: str):
     """Return the deal_memory_summary row from Supabase (for deal detail sidebar)."""
-    deal_res = supabase.table("deals").select("id").eq("id", deal_id).execute()
-    if not deal_res.data:
-        raise HTTPException(status_code=404, detail="Deal not found")
+    for attempt in range(3):
+        try:
+            deal_res = supabase.table("deals").select("id").eq("id", deal_id).execute()
+            if not deal_res.data:
+                raise HTTPException(status_code=404, detail="Deal not found")
 
-    summary_res = supabase.table("deal_memory_summary").select("*").eq("deal_id", deal_id).execute()
-    if not summary_res.data:
-        return {
-            "deal_id": deal_id,
-            "recurring_objections": [],
-            "key_stakeholders": [],
-            "competitor_landscape": [],
-            "sentiment_trend": "neutral",
-            "deal_risk_level": "unknown",
-            "winning_strategies": [],
-            "total_meetings": 0,
-        }
-    return summary_res.data[0]
+            summary_res = supabase.table("deal_memory_summary").select("*").eq("deal_id", deal_id).execute()
+            if not summary_res.data:
+                return {
+                    "deal_id": deal_id,
+                    "recurring_objections": [],
+                    "key_stakeholders": [],
+                    "competitor_landscape": [],
+                    "sentiment_trend": "neutral",
+                    "deal_risk_level": "unknown",
+                    "winning_strategies": [],
+                    "total_meetings": 0,
+                }
+            return summary_res.data[0]
+        except httpx.RemoteProtocolError:
+            if attempt < 2:
+                await asyncio.sleep(2 ** attempt)
+                continue
+            raise
+        except HTTPException:
+            raise
+        except Exception as e:
+            if attempt < 2 and "Connection" in str(e):
+                await asyncio.sleep(2 ** attempt)
+                continue
+            raise
 
 
 @router.get("/deals/{deal_id}/report")

@@ -51,7 +51,7 @@ export default function MemoryPage() {
   }, [dealId]);
 
   if (loading) return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6">
       <Skeleton className="h-8 w-64 rounded-xl" />
       <Skeleton className="h-24 w-full rounded-xl" />
       <Skeleton className="h-48 w-full rounded-xl" />
@@ -86,26 +86,28 @@ export default function MemoryPage() {
   const total = data?.total_count ?? 0;
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href={`/deals/${dealId}`}>
-          <Button variant="outline" size="sm" className="gap-1.5 bg-white/80">
-            <ArrowLeft className="h-3.5 w-3.5" /> Back
-          </Button>
-        </Link>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-slate-900">Memory Timeline</h1>
-          {deal && <p className="text-sm text-slate-500">{deal.name} — {deal.company}</p>}
+      <div className="glass-surface p-5">
+        <div className="flex items-center gap-4">
+          <Link href={`/deals/${dealId}`}>
+            <Button variant="ghost" size="sm" className="gap-1.5 text-slate-500 hover:text-slate-700">
+              <ArrowLeft className="h-3.5 w-3.5" /> Back
+            </Button>
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-slate-900">Memory Timeline</h1>
+            {deal && <p className="text-sm text-slate-500">{deal.name} — {deal.company}</p>}
+          </div>
+          <Badge variant="outline" className="shrink-0 text-indigo-600 border-indigo-200 bg-indigo-50">
+            <Brain className="h-3 w-3 mr-1" />
+            {total} {total === 1 ? "memory" : "memories"}
+          </Badge>
         </div>
-        <Badge variant="outline" className="shrink-0 text-indigo-600 border-indigo-200 bg-indigo-50">
-          <Brain className="h-3 w-3 mr-1" />
-          {total} {total === 1 ? "memory" : "memories"}
-        </Badge>
       </div>
 
       {/* Memory Depth Indicator */}
-      <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl p-4 shadow-sm">
+      <div className="glass-surface p-4">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Memory Depth</p>
         <div className="flex gap-3">
           {[
@@ -133,7 +135,9 @@ export default function MemoryPage() {
           sortedGroups.map(({ meetingNumber, entries }) => {
             const sentiment = entries.find((e) => e.metadata?.sentiment)?.metadata?.sentiment as string | undefined;
             return (
-              <div key={meetingNumber} className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl p-4 shadow-sm border-l-4 border-l-indigo-300">
+              <div key={meetingNumber} className="bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-xl p-4 border-l-4 border-l-indigo-300"
+                style={{ boxShadow: "0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.03)" }}
+              >
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="text-xs font-bold text-indigo-700 uppercase tracking-wide">
                     Meeting #{meetingNumber}
@@ -156,7 +160,7 @@ export default function MemoryPage() {
             );
           })
         ) : (
-          <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center">
+          <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center bg-white/40">
             <p className="text-sm text-slate-400">No meeting records yet. Process your first meeting to create memory.</p>
           </div>
         )}
@@ -171,7 +175,9 @@ export default function MemoryPage() {
             <span className="text-xs text-slate-400 ml-auto">Follow-through context</span>
           </div>
           {actionCompletions.map((entry, idx) => (
-            <div key={idx} className="bg-white/80 backdrop-blur-sm border border-emerald-200 rounded-xl p-3 shadow-sm border-l-4 border-l-emerald-400">
+            <div key={idx} className="bg-white/80 backdrop-blur-sm border border-emerald-200/80 rounded-xl p-3 border-l-4 border-l-emerald-400"
+              style={{ boxShadow: "0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.03)" }}
+            >
               <p className="text-sm text-slate-700">{stripUUIDs(entry.content)}</p>
             </div>
           ))}
@@ -187,7 +193,9 @@ export default function MemoryPage() {
             <span className="text-xs text-slate-400 ml-auto">Added outside meetings</span>
           </div>
           {manualNotes.map((entry, idx) => (
-            <div key={idx} className="bg-white/80 backdrop-blur-sm border border-amber-200 rounded-xl p-3 shadow-sm border-l-4 border-l-amber-400">
+            <div key={idx} className="bg-white/80 backdrop-blur-sm border border-amber-200/80 rounded-xl p-3 border-l-4 border-l-amber-400"
+              style={{ boxShadow: "0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.03)" }}
+            >
               <p className="text-sm text-slate-700">{stripUUIDs(entry.content)}</p>
             </div>
           ))}
@@ -202,7 +210,9 @@ export default function MemoryPage() {
           <span className="text-xs text-slate-400 ml-auto">Cross-meeting insights</span>
         </div>
         {data?.semantic && data.semantic.length > 0 ? (
-          <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-400">
+          <div className="bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-xl p-4 border-l-4 border-l-blue-400"
+            style={{ boxShadow: "0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.03)" }}
+          >
             {Boolean(data.semantic[0].metadata?.updated_after_meeting) && (
               <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 mb-3">
                 Emerged after Meeting {data.semantic[0].metadata?.updated_after_meeting as number}
@@ -211,7 +221,7 @@ export default function MemoryPage() {
             <p className="text-sm text-slate-700 leading-relaxed">{stripUUIDs(data.semantic[0].content)}</p>
           </div>
         ) : (
-          <div className="border-2 border-dashed border-blue-100 rounded-xl p-6 text-center">
+          <div className="border-2 border-dashed border-blue-100 rounded-xl p-6 text-center bg-white/40">
             <p className="text-sm text-blue-400">Patterns will be detected after your 2nd meeting</p>
           </div>
         )}
@@ -225,7 +235,9 @@ export default function MemoryPage() {
           <span className="text-xs text-slate-400 ml-auto">What works</span>
         </div>
         {data?.procedural && data.procedural.length > 0 ? (
-          <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl p-4 shadow-sm border-l-4 border-l-emerald-400">
+          <div className="bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-xl p-4 border-l-4 border-l-emerald-400"
+            style={{ boxShadow: "0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.03)" }}
+          >
             {Boolean(data.procedural[0].metadata?.derived_after_meeting) && (
               <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 mb-3">
                 Derived after Meeting {data.procedural[0].metadata?.derived_after_meeting as number}
@@ -234,7 +246,7 @@ export default function MemoryPage() {
             <p className="text-sm text-slate-700 leading-relaxed">{stripUUIDs(data.procedural[0].content)}</p>
           </div>
         ) : (
-          <div className="border-2 border-dashed border-emerald-100 rounded-xl p-6 text-center">
+          <div className="border-2 border-dashed border-emerald-100 rounded-xl p-6 text-center bg-white/40">
             <p className="text-sm text-emerald-400">Strategies will be derived after your 3rd meeting</p>
           </div>
         )}

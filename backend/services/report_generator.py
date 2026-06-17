@@ -1,5 +1,6 @@
 import json
 import logging
+import asyncio
 import httpx
 from typing import Dict, Any, List
 
@@ -65,24 +66,41 @@ async def generate_report(
     }
 
     for model in ["qwen/qwen3-32b", "llama-3.3-70b-versatile"]:
-        try:
-            async with httpx.AsyncClient(timeout=120) as client:
-                resp = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers=headers,
-                    json={
-                        "model": model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 2000,
-                        "temperature": 0.2,
-                    },
-                )
-                resp.raise_for_status()
-                raw = resp.json()["choices"][0]["message"]["content"]
-                cleaned = raw.replace("```json", "").replace("```", "").strip()
-                return json.loads(cleaned)
-        except Exception as e:
-            logger.warning(f"Report generation with {model} failed: {e}")
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=120) as client:
+                    resp = await client.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers=headers,
+                        json={
+                            "model": model,
+                            "messages": [{"role": "user", "content": prompt}],
+                            "max_tokens": 2000,
+                            "temperature": 0.2,
+                        },
+                    )
+                    if resp.status_code == 429:
+                        wait = 2 ** attempt * 2
+                        logger.warning(f"Rate limited on {model} for report (attempt {attempt+1}), waiting {wait}s")
+                        await asyncio.sleep(wait)
+                        continue
+                    resp.raise_for_status()
+                    body = resp.json()
+                    choices = body.get("choices", [])
+                    if not choices or not choices[0].get("message", {}).get("content"):
+                        logger.warning(f"Empty report response from {model}")
+                        await asyncio.sleep(2)
+                        continue
+                    raw = choices[0]["message"]["content"]
+                    cleaned = raw.replace("```json", "").replace("```", "").strip()
+                    return json.loads(cleaned)
+            except httpx.RemoteProtocolError:
+                wait = 2 ** attempt * 2
+                logger.warning(f"Connection error on {model} for report (attempt {attempt+1}), waiting {wait}s")
+                await asyncio.sleep(wait)
+            except Exception as e:
+                logger.warning(f"Report generation with {model} failed: {e}")
+                break
 
     return {
         "executive_summary": "Report generation failed. Please try again.",
@@ -141,24 +159,41 @@ async def generate_recommendations(
     }
 
     for model in ["qwen/qwen3-32b", "llama-3.3-70b-versatile"]:
-        try:
-            async with httpx.AsyncClient(timeout=120) as client:
-                resp = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers=headers,
-                    json={
-                        "model": model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 1500,
-                        "temperature": 0.3,
-                    },
-                )
-                resp.raise_for_status()
-                raw = resp.json()["choices"][0]["message"]["content"]
-                cleaned = raw.replace("```json", "").replace("```", "").strip()
-                return json.loads(cleaned)
-        except Exception as e:
-            logger.warning(f"Recommendation generation with {model} failed: {e}")
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=120) as client:
+                    resp = await client.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers=headers,
+                        json={
+                            "model": model,
+                            "messages": [{"role": "user", "content": prompt}],
+                            "max_tokens": 1500,
+                            "temperature": 0.3,
+                        },
+                    )
+                    if resp.status_code == 429:
+                        wait = 2 ** attempt * 2
+                        logger.warning(f"Rate limited on {model} for recommendations (attempt {attempt+1}), waiting {wait}s")
+                        await asyncio.sleep(wait)
+                        continue
+                    resp.raise_for_status()
+                    body = resp.json()
+                    choices = body.get("choices", [])
+                    if not choices or not choices[0].get("message", {}).get("content"):
+                        logger.warning(f"Empty recommendation response from {model}")
+                        await asyncio.sleep(2)
+                        continue
+                    raw = choices[0]["message"]["content"]
+                    cleaned = raw.replace("```json", "").replace("```", "").strip()
+                    return json.loads(cleaned)
+            except httpx.RemoteProtocolError:
+                wait = 2 ** attempt * 2
+                logger.warning(f"Connection error on {model} for recommendations (attempt {attempt+1}), waiting {wait}s")
+                await asyncio.sleep(wait)
+            except Exception as e:
+                logger.warning(f"Recommendation generation with {model} failed: {e}")
+                break
 
     return {
         "recommendations": [],

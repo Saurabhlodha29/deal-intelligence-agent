@@ -321,10 +321,11 @@ async def upload_meeting_audio(
         # Store audio in Supabase Storage
         audio_path = f"{meeting_id}/{filename}"
         try:
+            content_type = audio.content_type or "audio/webm"
             supabase.storage.from_("meeting-audio").upload(
                 path=audio_path,
                 file=audio_bytes,
-                file_options={"content-type": "audio/webm"}
+                file_options={"content-type": content_type}
             )
             # Get public URL
             audio_url = supabase.storage.from_("meeting-audio").get_public_url(audio_path)

@@ -23,8 +23,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TrendingUp, Building2, CalendarDays, Plus } from "lucide-react";
+import { TrendingUp, Building2, CalendarDays, Plus, Brain, Clock, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+function getMemoryStrength(meetings: number): { label: string; color: string; bg: string } {
+  if (meetings >= 3) return { label: "Strong Memory", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" };
+  if (meetings >= 1) return { label: "Building Context", color: "text-amber-700", bg: "bg-amber-50 border-amber-200" };
+  return { label: "Low Context", color: "text-slate-500", bg: "bg-slate-50 border-slate-200" };
+}
+
+function getDealHealth(deal: Deal): { label: string; color: string; bg: string; dot: string } {
+  const meetings = deal.total_meetings || 0;
+  if (meetings >= 4) return { label: "Healthy", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", dot: "bg-emerald-500" };
+  if (meetings >= 2) return { label: "At Risk", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", dot: "bg-amber-500" };
+  if (meetings === 1) return { label: "Critical", color: "text-red-600", bg: "bg-red-50 border-red-200", dot: "bg-red-500" };
+  return { label: "New", color: "text-slate-500", bg: "bg-slate-50 border-slate-200", dot: "bg-slate-400" };
+}
+
+function formatRelativeTime(dateStr?: string): string {
+  if (!dateStr) return "No activity";
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 const stageBorderColor: Record<string, string> = {
   discovery: "border-l-slate-400",
@@ -174,8 +203,8 @@ export default function DashboardPage() {
             { label: "Active Deals", value: activeDeals.length, icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
             { label: "Total Meetings", value: totalMeetings, icon: CalendarDays, color: "text-amber-600", bg: "bg-amber-50" },
           ].map((stat) => (
-            <div key={stat.label} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${stat.bg}`}>
+            <div key={stat.label} className="glass-surface p-4 flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl ${stat.bg}`}>
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </div>
               <div>
@@ -190,10 +219,10 @@ export default function DashboardPage() {
       {/* Deal Cards Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-40 rounded-xl" />)}
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-48 rounded-xl" />)}
         </div>
       ) : deals.length === 0 ? (
-        <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-2xl">
+        <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-2xl bg-white/40 backdrop-blur-sm">
           <div className="p-3 bg-indigo-50 rounded-full w-fit mx-auto mb-4">
             <Building2 className="h-6 w-6 text-indigo-500" />
           </div>
@@ -202,35 +231,62 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {deals.map((deal) => (
-            <div
-              key={deal.id}
-              onClick={() => router.push(`/deals/${deal.id}`)}
-              className={`
-                bg-white border-l-4 border border-slate-200 rounded-xl p-5 shadow-sm
-                hover:shadow-md hover:border-slate-300 cursor-pointer transition-all duration-200
-                ${stageBorderColor[deal.stage] || "border-l-slate-300"}
-              `}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-slate-900 truncate">{deal.company}</p>
-                  <p className="text-sm text-slate-500 truncate mt-0.5">{deal.name}</p>
+          {deals.map((deal) => {
+            const memory = getMemoryStrength(deal.total_meetings || 0);
+            const health = getDealHealth(deal);
+            return (
+              <div
+                key={deal.id}
+                onClick={() => router.push(`/deals/${deal.id}`)}
+                className={`
+                  bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-xl p-5
+                  hover:shadow-lg hover:border-slate-300/80 cursor-pointer transition-all duration-200
+                  ${stageBorderColor[deal.stage] || "border-l-slate-300"}
+                `}
+                style={{
+                  boxShadow: "0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.03)",
+                }}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-slate-900 truncate">{deal.company}</p>
+                    <p className="text-sm text-slate-500 truncate mt-0.5">{deal.name}</p>
+                  </div>
+                  <Badge className={`ml-2 shrink-0 text-xs ${stageBadgeClass[deal.stage] || "bg-slate-100 text-slate-600"}`}>
+                    {deal.stage.replace(/_/g, " ")}
+                  </Badge>
                 </div>
-                <Badge className={`ml-2 shrink-0 text-xs ${stageBadgeClass[deal.stage] || "bg-slate-100 text-slate-600"}`}>
-                  {deal.stage.replace(/_/g, " ")}
-                </Badge>
+
+                {/* Deal Health + Memory Strength */}
+                <div className="flex items-center gap-2 mb-3">
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${health.bg}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${health.dot}`} />
+                    <span className={health.color}>{health.label}</span>
+                  </span>
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${memory.bg}`}>
+                    <Brain className={`h-3 w-3 ${memory.color}`} />
+                    <span className={memory.color}>{memory.label}</span>
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+                  <span className="text-lg font-bold text-slate-800">
+                    {formatCurrency(deal.deal_value, deal.currency) || "—"}
+                  </span>
+                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <CalendarDays className="h-3 w-3" />
+                      {deal.total_meetings || 0} {(deal.total_meetings || 0) === 1 ? "meeting" : "meetings"}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {formatRelativeTime(deal.updated_at)}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
-                <span className="text-lg font-bold text-slate-800">
-                  {formatCurrency(deal.deal_value, deal.currency) || "—"}
-                </span>
-                <span className="text-xs text-slate-400">
-                  {deal.total_meetings || 0} {(deal.total_meetings || 0) === 1 ? "meeting" : "meetings"}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

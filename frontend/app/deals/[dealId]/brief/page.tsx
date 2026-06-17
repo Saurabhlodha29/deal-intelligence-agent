@@ -49,14 +49,16 @@ export default function BriefPage() {
   }, [dealId]);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
-      <div className="flex items-center gap-4">
-        <Link href={`/deals/${dealId}`}>
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <ArrowLeft className="h-3.5 w-3.5" /> Back
-          </Button>
-        </Link>
-        <h1 className="text-xl font-bold text-slate-900">Pre-Meeting Brief</h1>
+    <div className="space-y-5">
+      <div className="glass-surface p-5">
+        <div className="flex items-center gap-4">
+          <Link href={`/deals/${dealId}`}>
+            <Button variant="ghost" size="sm" className="gap-1.5 text-slate-500 hover:text-slate-700">
+              <ArrowLeft className="h-3.5 w-3.5" /> Back
+            </Button>
+          </Link>
+          <h1 className="text-xl font-bold text-slate-900">Pre-Meeting Brief</h1>
+        </div>
       </div>
 
       {loading && (
@@ -76,9 +78,9 @@ export default function BriefPage() {
       {!loading && !error && brief && deal && (
         <div className="space-y-5">
           {/* Header */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
+          <Card className="bg-white/80 backdrop-blur-sm border-slate-200/80">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between text-slate-900">
                 <span>{deal.company}</span>
                 <Badge className={confidenceColors[brief.confidence]}>
                   {brief.confidence} confidence
@@ -96,8 +98,8 @@ export default function BriefPage() {
           </Card>
 
           {/* Meeting History */}
-          <Card className="shadow-sm">
-            <CardHeader><CardTitle>Meeting History</CardTitle></CardHeader>
+          <Card className="bg-white/80 backdrop-blur-sm border-slate-200/80">
+            <CardHeader className="pb-3"><CardTitle className="text-slate-900">Meeting History</CardTitle></CardHeader>
             <CardContent>
               <p className="text-slate-700 text-sm">{brief.meeting_history_summary}</p>
             </CardContent>
@@ -105,12 +107,12 @@ export default function BriefPage() {
 
           {/* Risks */}
           {brief.recurring_risks.length > 0 && (
-            <Card className="shadow-sm">
-              <CardHeader><CardTitle>Risks to Watch</CardTitle></CardHeader>
+            <Card className="bg-white/80 backdrop-blur-sm border-slate-200/80">
+              <CardHeader className="pb-3"><CardTitle className="text-slate-900">Risks to Watch</CardTitle></CardHeader>
               <CardContent className="space-y-2">
                 {brief.recurring_risks.map((r, i) => (
-                  <div key={i} className={`border-l-4 p-3 rounded ${severityColors[r.severity as keyof typeof severityColors] || severityColors.low}`}>
-                    <p className="font-medium text-sm">{r.risk}</p>
+                  <div key={i} className={`border-l-4 p-3 rounded-lg ${severityColors[r.severity as keyof typeof severityColors] || severityColors.low}`}>
+                    <p className="font-medium text-sm text-slate-900">{r.risk}</p>
                     {r.appeared_in_meetings?.length > 0 && (
                       <p className="text-xs text-slate-500 mt-1">
                         Appeared in meetings: {r.appeared_in_meetings.join(", ")}
@@ -124,11 +126,11 @@ export default function BriefPage() {
 
           {/* Stakeholders */}
           {brief.stakeholders_to_know.length > 0 && (
-            <Card className="shadow-sm">
-              <CardHeader><CardTitle>Key Stakeholders</CardTitle></CardHeader>
+            <Card className="bg-white/80 backdrop-blur-sm border-slate-200/80">
+              <CardHeader className="pb-3"><CardTitle className="text-slate-900">Key Stakeholders</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {brief.stakeholders_to_know.map((s, i) => (
-                  <div key={i} className="border border-slate-200 rounded-lg p-3">
+                  <div key={i} className="border border-slate-200/80 rounded-lg p-3 bg-white/60">
                     <p className="font-semibold text-sm text-slate-900">{s.name}</p>
                     <p className="text-xs text-slate-500">{s.role}</p>
                     <p className="text-sm mt-1 text-slate-700">{s.key_concern}</p>
@@ -140,12 +142,12 @@ export default function BriefPage() {
 
           {/* Strategies */}
           {brief.recommended_strategies.length > 0 && (
-            <Card className="shadow-sm">
-              <CardHeader><CardTitle>Recommended Strategies</CardTitle></CardHeader>
+            <Card className="bg-white/80 backdrop-blur-sm border-slate-200/80">
+              <CardHeader className="pb-3"><CardTitle className="text-slate-900">Recommended Strategies</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {brief.recommended_strategies.map((s, i) => (
                   <div key={i} className="border-l-4 border-l-emerald-400 pl-3">
-                    <p className="font-medium text-sm">{s.strategy}</p>
+                    <p className="font-medium text-sm text-slate-900">{s.strategy}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{s.reasoning}</p>
                   </div>
                 ))}
@@ -155,8 +157,8 @@ export default function BriefPage() {
 
           {/* Competitor Context */}
           {brief.competitor_context && brief.competitor_context !== "No data available." && (
-            <Card className="shadow-sm">
-              <CardHeader><CardTitle>Competitive Context</CardTitle></CardHeader>
+            <Card className="bg-white/80 backdrop-blur-sm border-slate-200/80">
+              <CardHeader className="pb-3"><CardTitle className="text-slate-900">Competitive Context</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-slate-700 text-sm">{brief.competitor_context}</p>
               </CardContent>

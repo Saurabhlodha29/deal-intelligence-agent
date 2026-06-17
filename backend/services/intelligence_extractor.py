@@ -1,5 +1,6 @@
 import json
 import logging
+import asyncio
 from typing import Any, Dict
 
 import httpx
@@ -22,21 +23,31 @@ async def extract_intelligence(transcript: str) -> Dict[str, Any]:
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "qwen/qwen3-32b",
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 2000,
         "temperature": 0.1,
     }
     async def call_api(model: str) -> str:
         payload["model"] = model
-        async with httpx.AsyncClient(timeout=120) as client:
-            resp = await client.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers=headers,
-                json=payload,
-            )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+        for attempt in range(3):
+            async with httpx.AsyncClient(timeout=120) as client:
+                resp = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
+                if resp.status_code == 429:
+                    wait = 2 ** attempt * 2
+                    logger.warning(f"Rate limited on {model} (attempt {attempt+1}), waiting {wait}s")
+                    await asyncio.sleep(wait)
+                    continue
+                resp.raise_for_status()
+                body = resp.json()
+                choices = body.get("choices", [])
+                if not choices or not choices[0].get("message", {}).get("content"):
+                    raise ValueError("Empty response from API")
+                return choices[0]["message"]["content"]
+        raise ValueError(f"All retries exhausted for {model}")
 
     try:
         raw = await call_api("qwen/qwen3-32b")
